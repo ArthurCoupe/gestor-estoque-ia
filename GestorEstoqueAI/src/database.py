@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 import os
 
-# --- CONFIGURAÇÃO DO CAMINHO DO BANCO ---
+# --- CONFIGURAÇÃO DO CAMINHO ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, '..', 'data', 'estoque.db')
 
@@ -34,7 +34,6 @@ def init_db():
 def adicionar_produto(nome, minimo):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Força conversão para int padrão do Python
     cursor.execute('INSERT INTO produtos (nome, estoque_minimo) VALUES (?, ?)', (nome, int(minimo)))
     conn.commit()
     conn.close()
@@ -42,7 +41,6 @@ def adicionar_produto(nome, minimo):
 def registrar_movimentacao(id_produto, tipo, qtd):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Força conversão para int
     id_produto = int(id_produto)
     qtd = int(qtd)
     
@@ -58,17 +56,29 @@ def registrar_movimentacao(id_produto, tipo, qtd):
 
 def ler_estoque():
     conn = sqlite3.connect(DB_PATH)
+    # Traz produtos via pandas (geralmente funciona bem para tabelas simples)
     df = pd.read_sql_query("SELECT * FROM produtos", conn)
     conn.close()
     return df
 
 def ler_dados_produto(id_produto):
+    # --- MUDANÇA "MODO RAIZ" PARA EVITAR ERRO NA NUVEM ---
     conn = sqlite3.connect(DB_PATH)
-    # BLINDAGEM: Monta a frase SQL direto com o número inteiro, sem passar params
-    # Isso evita o erro "unsupported type" do Pandas na nuvem
-    query = f"SELECT * FROM movimentacoes WHERE id_produto = {int(id_produto)}"
-    df = pd.read_sql_query(query, conn)
+    cursor = conn.cursor()
+    
+    # 1. Executa o SQL manualmente (sem usar o Pandas aqui)
+    cursor.execute("SELECT * FROM movimentacoes WHERE id_produto = ?", (int(id_produto),))
+    linhas = cursor.fetchall()
     conn.close()
+    
+    # 2. Constrói a tabela Pandas manualmente
+    colunas = ['id', 'id_produto', 'tipo', 'qtd', 'data_hora']
+    if linhas:
+        df = pd.DataFrame(linhas, columns=colunas)
+    else:
+        # Se não tiver dados, cria tabela vazia para não quebrar o gráfico
+        df = pd.DataFrame(columns=colunas)
+        
     return df
 
 def atualizar_produto(id_produto, novo_nome, novo_minimo):
@@ -78,16 +88,4 @@ def atualizar_produto(id_produto, novo_nome, novo_minimo):
         UPDATE produtos 
         SET nome = ?, estoque_minimo = ?
         WHERE id = ?
-    ''', (novo_nome, int(novo_minimo), int(id_produto)))
-    conn.commit()
-    conn.close()
-
-def deletar_produto(id_produto):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    id_produto = int(id_produto)
-    cursor.execute('DELETE FROM produtos WHERE id = ?', (id_produto,))
-    cursor.execute('DELETE FROM movimentacoes WHERE id_produto = ?', (id_produto,))
-    conn.commit()
-    conn.close()
-
+    ''',
