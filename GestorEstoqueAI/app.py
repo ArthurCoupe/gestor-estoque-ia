@@ -147,4 +147,5 @@ elif menu == "Gerenciar Cadastros":
                 st.rerun()
                 
     else:
+
         st.info("Nenhum produto cadastrado.")
