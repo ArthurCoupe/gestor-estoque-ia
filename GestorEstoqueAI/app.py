@@ -1,16 +1,8 @@
 import streamlit as st
 import pandas as pd
 from src.ai_engine import previsao_estoque
-# Importação organizada verticalmente para evitar erros de sintaxe
-from src.database import (
-    init_db, 
-    adicionar_produto, 
-    registrar_movimentacao, 
-    ler_estoque, 
-    ler_dados_produto, 
-    atualizar_produto, 
-    deletar_produto
-)
+# Importação em linha única para evitar erro de sintaxe
+from src.database import init_db, adicionar_produto, registrar_movimentacao, ler_estoque, ler_dados_produto, atualizar_produto, deletar_produto
 from src.google_cal import agendar_compra
 
 # 1. Configuração da Página
@@ -65,3 +57,4 @@ if menu == "Dashboard & IA":
                     vendas_diarias.columns = ['Data', 'Vendas']
                     
                     st.line_chart(vendas_diarias.set_index('Data'))
+
