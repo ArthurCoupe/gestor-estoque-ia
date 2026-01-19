@@ -1,39 +1,35 @@
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import numpy as np
-from datetime import datetime
 
-def prever_esgotamento(df_historico, estoque_atual):
+def previsao_estoque(estoque_atual, historico_vendas):
     """
-    Retorna em quantos dias o estoque vai acabar.
+    Calcula em quantos dias o estoque vai acabar baseada na média de vendas.
     """
-    # Verifica se tem dados suficientes (pelo menos 5 vendas para ter precisão)
-    if len(df_historico) < 5:
-        return "Dados insuficientes para IA (mínimo 5 vendas)"
-
-    # Preparação dos dados
-    df_historico['data_hora'] = pd.to_datetime(df_historico['data_hora'])
-    
-    # Transforma datas em números (dias) para a matemática funcionar
-    # Ex: dia 1, dia 2, dia 3...
-    df_historico['dias_ordinal'] = df_historico['data_hora'].map(datetime.toordinal)
-    
-    # X = Tempo, Y = Vendas Acumuladas
-    # A IA vai entender a "velocidade" de venda
-    X = df_historico[['dias_ordinal']].values
-    y = df_historico['qtd'].cumsum().values # Acumulado de vendas
-
-    # Cria o modelo de Regressão Linear
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Coeficiente angular = Vendas por dia (velocidade)
-    vendas_por_dia = model.coef_[0]
-    
-    # Evita divisão por zero ou números negativos se as vendas pararam
-    if vendas_por_dia <= 0:
-        return "Vendas estagnadas (Estoque seguro)"
-
-    # Previsão final
-    dias_restantes = int(estoque_atual / vendas_por_dia)
-    return dias_restantes
+    # Se não tiver dados suficientes (menos de 2 dias de vendas), retorna previsão padrão
+    if historico_vendas.empty or len(historico_vendas) < 2:
+        return 30  # Chute seguro de 1 mês
+        
+    try:
+        # Prepara os dados para a IA (Regressão Linear Simples)
+        historico_vendas['dias'] = (historico_vendas['data_hora'] - historico_vendas['data_hora'].min()).dt.days
+        
+        X = historico_vendas['dias'].values.reshape(-1, 1)
+        y = historico_vendas['qtd'].values
+        
+        modelo = LinearRegression()
+        modelo.fit(X, y)
+        
+        # Prever vendas futuras (tendência diária)
+        venda_media_diaria = modelo.coef_[0]
+        
+        # Se a venda média for negativa ou zero (não está vendendo), estoque dura "infinito"
+        if venda_media_diaria <= 0:
+            return 999
+            
+        dias_restantes = estoque_atual / venda_media_diaria
+        return dias_restantes
+        
+    except Exception:
+        # Se a IA falhar por qualquer motivo matemático, retorna 15 dias por segurança
+        return 15
