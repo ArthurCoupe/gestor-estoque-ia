@@ -64,8 +64,10 @@ def ler_estoque():
 
 def ler_dados_produto(id_produto):
     conn = sqlite3.connect(DB_PATH)
-    # AQUI ESTAVA O ERRO: Adicionado int() para garantir que o ID seja aceito
-    df = pd.read_sql_query("SELECT * FROM movimentacoes WHERE id_produto = ?", conn, params=(int(id_produto),))
+    # BLINDAGEM: Monta a frase SQL direto com o número inteiro, sem passar params
+    # Isso evita o erro "unsupported type" do Pandas na nuvem
+    query = f"SELECT * FROM movimentacoes WHERE id_produto = {int(id_produto)}"
+    df = pd.read_sql_query(query, conn)
     conn.close()
     return df
 
@@ -88,3 +90,4 @@ def deletar_produto(id_produto):
     cursor.execute('DELETE FROM movimentacoes WHERE id_produto = ?', (id_produto,))
     conn.commit()
     conn.close()
+
